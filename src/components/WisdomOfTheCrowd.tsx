@@ -45,7 +45,7 @@ export const WisdomOfTheCrowd: FC = () => {
 
             const [questionStatsPDA, questionStatsBump] = await PublicKey.findProgramAddressSync(
                 [
-                    
+                    anchProvider.wallet.publicKey.toBuffer(),
                 ],
                 program.programId
             );
