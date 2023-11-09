@@ -1,5 +1,6 @@
 
 import { FC } from "react";
+import { WisdomOfTheCrowd } from "../../components/WisdomOfTheCrowd";
 import { SignMessage } from '../../components/SignMessage';
 import { SendTransaction } from '../../components/SendTransaction';
 import { SendVersionedTransaction } from '../../components/SendVersionedTransaction';
@@ -14,9 +15,7 @@ export const BasicsView: FC = ({ }) => {
         </h1>
         {/* CONTENT GOES HERE */}
         <div className="text-center">
-          <SignMessage />
-          <SendTransaction />
-          <SendVersionedTransaction />
+          < WisdomOfTheCrowd />
         </div>
       </div>
     </div>
