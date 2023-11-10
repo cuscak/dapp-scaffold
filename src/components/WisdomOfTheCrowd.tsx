@@ -21,6 +21,7 @@ const QUESTION_STATS_SEED = "QUESTION_STATS_SEED";
 export const WisdomOfTheCrowd: FC = () => {
     const [question, setQuestion] = useState("");
     const [treshold, setTreshold] = useState(0);
+    const [answer, setAnswer] = useState("");
 
     const [questionAccounts, setQuestionAccounts] = useState([]);
 
@@ -122,6 +123,11 @@ export const WisdomOfTheCrowd: FC = () => {
         }
     }
 
+    const addAnswer = (questionPubkey, answerValue) => {
+        console.log(`Adding answer to question: ${questionPubkey}`);
+        // Your logic to add an answer here
+    };
+
     return (
         <div className="flex flex-col items-center justify-center">
             <form onSubmit={createQuestion} className="w-full max-w-sm">
@@ -166,32 +172,59 @@ export const WisdomOfTheCrowd: FC = () => {
                 List Questions
             </button>
 
-            {/* Display the list of questions */}
-            <div>
-                {questionAccounts.map((account, index) => {
-                    if (account) {
-                        if (account.type === 'Question') {
-                            const questionText = new TextDecoder().decode(new Uint8Array(account.data.question));
-                            const trimmedQuestionText = questionText.replace(/\0.*$/g,'');
-                            return (
-                                <div key={index}>
-                                    <p>Question: {trimmedQuestionText}</p>
-                                    <p>Author: {account.data.author.toBase58()}</p>
-                                    <p>Threshold: {account.data.treshold}</p>
-                                </div>
-                            );
-                        } else if (account.type === 'QuestionStats') {
-                            return (
-                                <div key={index}>
-                                    <p>Question Stats: {account.data.questionAcc.toBase58()}</p>
-                                    <p>Answers Count: {account.data.answersCount}</p>
-                                    <p>Average: {account.data.average.toString()}</p>
-                                </div>
-                            );
-                        }
-                    }
-                    return null; // In case account is null or undefined
-                })}
+            {/* Table to display questions and stats, with an input to add answers */}
+            <div className="my-4 w-full max-w-3xl">
+                <table className="table-auto border-collapse w-full">
+                    <thead>
+                        <tr className="rounded-lg text-sm font-medium text-gray-700 text-left">
+                            <th className="px-4 py-2 bg-gray-200">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody className="text-sm font-normal text-gray-700">
+                        {questionAccounts.map((account, index) => {
+                            if (account && account.type === 'Question') {
+                                const questionText = new TextDecoder().decode(new Uint8Array(account.data.question));
+                                const trimmedQuestionText = questionText.replace(/\0.*$/g, '');
+
+                                const stats = questionAccounts.find((acc) => acc.type === 'QuestionStats' && acc.data.questionAcc.toString() === account.pubkey.toString());
+
+                                return (
+                                    <tr className="hover:bg-gray-100 border-b border-gray-200 text-left" key={index}>
+                                        <td className="px-4 py-4">
+                                            <div>Question: {trimmedQuestionText}</div>
+                                            <div>Threshold: {account.data.treshold}</div>
+                                            <div>Answers Count: {stats ? stats.data.answersCount : 'N/A'}</div>
+                                            <div>Average: {stats ? stats.data.average.toString() : 'N/A'}</div>
+                                            <div className="mt-4">
+                                                <form onSubmit={(e) => {
+                                                    e.preventDefault();
+                                                    // Replace with the actual logic to add an answer
+                                                    console.log(`Adding answer to question: ${account.pubkey.toBase58()}`);
+                                                }}>
+                                                    <input
+                                                        type="number"
+                                                        placeholder="Your answer..."
+                                                        className="text-gray-700 py-1 px-2 mr-2"
+                                                        value={answer}
+                                                        onChange={(e) => setAnswer(e.target.value)}
+                                                        required
+                                                    />
+                                                    <button
+                                                        type="submit"
+                                                        className="btn bg-gradient-to-br from-blue-500 to-purple-500 hover:from-white hover:to-purple-300 text-black"
+                                                    >
+                                                        Submit
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            }
+                            return null;
+                        })}
+                    </tbody>
+                </table>
             </div>
         </div>
     );
