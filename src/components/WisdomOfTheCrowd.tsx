@@ -16,12 +16,14 @@ const programID = new PublicKey(idl.metadata.address);
 
 const QUESTION_SEED = "QUESTION_SEED";
 const QUESTION_STATS_SEED = "QUESTION_STATS_SEED";
+const ANSWER_SEED = "ANSWER_SEED";
 
 
 export const WisdomOfTheCrowd: FC = () => {
     const [question, setQuestion] = useState("");
     const [treshold, setTreshold] = useState(0);
-    const [answer, setAnswer] = useState("");
+    const [answers, setAnswers] = useState({});
+
 
     const [questionAccounts, setQuestionAccounts] = useState([]);
 
@@ -90,8 +92,8 @@ export const WisdomOfTheCrowd: FC = () => {
             const accounts = await connection.getProgramAccounts(programID);
             // Deserialize each account's data
             const accountDetails = await Promise.all(accounts.map(async (accountInfo) => {
+                // Attempt to fetch the account as a Question type.
                 try {
-                    // Attempt to fetch the account as a Question type.
                     const data = await program.account.question.fetch(accountInfo.pubkey);
                     return {
                         type: 'Question',
@@ -99,7 +101,7 @@ export const WisdomOfTheCrowd: FC = () => {
                         pubkey: accountInfo.pubkey.toBase58(),
                     };
                 } catch (err) {
-                    // If it fails, it might be a QuestionStats type.
+                    // If it fails, attempt to fetch as a QuestionStats type.
                     try {
                         const data = await program.account.questionStats.fetch(accountInfo.pubkey);
                         return {
@@ -108,9 +110,19 @@ export const WisdomOfTheCrowd: FC = () => {
                             pubkey: accountInfo.pubkey.toBase58(),
                         };
                     } catch (error) {
-                        // If it's neither, log an error or handle it as needed.
-                        console.error('Unknown account type or failed to fetch account data.', error);
-                        return null;
+                        // If it fails again, attempt to fetch as an Answer type.
+                        try {
+                            const data = await program.account.answer.fetch(accountInfo.pubkey);
+                            return {
+                                type: 'Answer',
+                                data,
+                                pubkey: accountInfo.pubkey.toBase58(),
+                            };
+                        } catch (errorInner) {
+                            // If it's neither, log an error or handle it as needed.
+                            console.error('Unknown account type or failed to fetch account data.', errorInner);
+                            return null;
+                        }
                     }
                 }
             }));
@@ -123,9 +135,35 @@ export const WisdomOfTheCrowd: FC = () => {
         }
     }
 
-    const addAnswer = (questionPubkey, answerValue) => {
-        console.log(`Adding answer to question: ${questionPubkey}`);
-        // Your logic to add an answer here
+    const addAnswer = async (questionPubkey, statsPubkey, answerValue) => {
+        const anchProvider = getProvider();
+        const program = new Program(idl_object, programID, anchProvider);
+
+        console.log("*****************", questionPubkey, statsPubkey, answerValue);
+
+        const [answerPDA, answerBump] = await PublicKey.findProgramAddressSync(
+            [
+                utils.bytes.utf8.encode(ANSWER_SEED),
+                anchProvider.wallet.publicKey.toBuffer(),
+                new PublicKey(questionPubkey).toBuffer(),
+            ],
+            program.programId
+        );
+
+        try {
+            const transaction = await program.methods
+                .createAnswer(new BN(answerValue))
+                .accounts({
+                    user: anchProvider.wallet.publicKey,
+                    answer: answerPDA,
+                    questionStatsAcc: statsPubkey,
+                    questionAcc: questionPubkey,
+                    systemProgram: web3.SystemProgram.programId,
+                })
+                .rpc();
+        } catch (error) {
+            console.log("Error adding answer", error);
+        }
     };
 
     return (
@@ -198,22 +236,27 @@ export const WisdomOfTheCrowd: FC = () => {
                                             <div className="mt-4">
                                                 <form onSubmit={(e) => {
                                                     e.preventDefault();
-                                                    // Replace with the actual logic to add an answer
-                                                    console.log(`Adding answer to question: ${account.pubkey.toBase58()}`);
+                                                    addAnswer(account.pubkey, stats.pubkey, answers[account.pubkey]);;
+                                                    console.log(`Adding answer to question: ${account.pubkey}`);
+                                                    //clear answer field
+                                                    setAnswers({ ...answers, [account.pubkey]: '' });
                                                 }}>
                                                     <input
                                                         type="number"
                                                         placeholder="Your answer..."
                                                         className="text-gray-700 py-1 px-2 mr-2"
-                                                        value={answer}
-                                                        onChange={(e) => setAnswer(e.target.value)}
+                                                        value={answers[account.pubkey] || ''} // Use answer specific to the question
+                                                        onChange={(e) => {
+                                                            setAnswers({ ...answers, [account.pubkey]: e.target.value });
+                                                        }}
                                                         required
                                                     />
+
                                                     <button
                                                         type="submit"
                                                         className="btn bg-gradient-to-br from-blue-500 to-purple-500 hover:from-white hover:to-purple-300 text-black"
                                                     >
-                                                        Submit
+                                                        Add answer
                                                     </button>
                                                 </form>
                                             </div>
